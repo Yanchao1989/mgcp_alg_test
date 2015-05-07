@@ -1,0 +1,147 @@
+######################################
+%setting
+ca=80.1.1.108:2427
+gw=81.1.1.107:2727
+gw6=[2081::108]:2727
+
+gw_v6_mode=False
+udp_mode=True
+test_count=5
+rtp_port=5000-6000
+%
+
+######################################
+%gw 0
+RSIP 237985720 *@Router MGCP 0.1
+RM: graceful
+RD: 0
+%
+
+%ca 0@0
+200 237985720 
+%
+
+######################################
+%gw 1
+RSIP 237985722 *@Router MGCP 0.1
+RM: restart
+%
+
+%ca 1@1
+200 237985722 
+%
+
+######################################
+%ca 2
+AUEP 294 BRI/S0/SU2/P0/1@Router MGCP 0.1
+F: X, A, I
+%
+
+%gw 2@2
+200 294 
+I:
+X: 0
+L: p:10-20, a:PCMU;PCMA;G.nX64, b:64, e:on, gc:1, s:on, t:10, r:g, nt:IN, v:T;G;D;L;H;R;ATM;SST;PRE
+L: p:10-220, a:G.729;G.729a;G.729b, b:8, e:on, gc:1, s:on, t:10, r:g, nt:IN, v:T;G;D;L;H;R;ATM;SST;PRE
+L: p:10-110, a:G.726-16;G.728, b:16, e:on, gc:1, s:on, t:10, r:g, nt:IN, v:T;G;D;L;H;R;ATM;SST;PRE
+L: p:10-70, a:G.726-24, b:24, e:on, gc:1, s:on, t:10, r:g, nt:IN, v:T;G;D;L;H;R;ATM;SST;PRE
+L: p:10-50, a:G.726-32, b:32, e:on, gc:1, s:on, t:10, r:g, nt:IN, v:T;G;D;L;H;R;ATM;SST;PRE
+M: sendonly, recvonly, sendrecv, inactive, loopback, conttest, data, netwloop, netwtest
+%
+
+######################################
+%ca 3
+AUEP 295 BRI/S0/SU2/P0/2@Router MGCP 0.1
+F: X, A, I
+%
+
+%gw 3@3
+200 295 
+I:
+X: 0
+L: p:10-20, a:PCMU;PCMA;G.nX64, b:64, e:on, gc:1, s:on, t:10, r:g, nt:IN, v:T;G;D;L;H;R;ATM;SST;PRE
+L: p:10-220, a:G.729;G.729a;G.729b, b:8, e:on, gc:1, s:on, t:10, r:g, nt:IN, v:T;G;D;L;H;R;ATM;SST;PRE
+L: p:10-110, a:G.726-16;G.728, b:16, e:on, gc:1, s:on, t:10, r:g, nt:IN, v:T;G;D;L;H;R;ATM;SST;PRE
+L: p:10-70, a:G.726-24, b:24, e:on, gc:1, s:on, t:10, r:g, nt:IN, v:T;G;D;L;H;R;ATM;SST;PRE
+L: p:10-50, a:G.726-32, b:32, e:on, gc:1, s:on, t:10, r:g, nt:IN, v:T;G;D;L;H;R;ATM;SST;PRE
+M: sendonly, recvonly, sendrecv, inactive, loopback, conttest, data, netwloop, netwtest
+%
+NTFY 237985724 *@Router MGCP 0.1
+X: 0
+O: 
+%
+
+######################################
+%gw 4
+NTFY 237985724 *@Router MGCP 0.1
+X: 0
+O: 
+%
+
+%ca 4@4
+200 237985724 
+%
+
+######################################
+%gw 5
+RSIP 237985721 *@Router MGCP 0.1
+RM: restart
+%
+
+%ca 5@5
+200 237985721 
+%
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%gw 1
+RSIP 1 *@ix4001.ixia-lab.com MGCP 1.0 NCS 1.0
+RM: restart
+%
+%ca 1@1
+200 1 Ok
+%
+
+%ca 2
+AUEP 1 aaln/0@ix4001.ixia-lab.com MGCP 1.0 NCS 1.0
+F: I,A
+%
+
+%gw 2
+RQNT 2 aaln/0@ix4001.ixia-lab.com MGCP 1.0 NCS 1.0
+X: 1
+R: L/hd
+S: 
+Q: discard
+K: 
+%
+
+%ca 3
+MDCX 298 BRI/S0/SU2/P0/2@Router MGCP 0.1
+C: D000000001a5fe90000000F500000001
+I: 2
+X: 2
+L: p:20, a:PCMU, s:off, t:b8
+M: sendrecv
+R: D/[0-9ABCD*#]
+S: 
+Q: process,loop
+
+v=0
+o=- 2 0 IN EPN BRI/S0/SU2/P0/2@Router
+s=Cisco SDP 0
+t=0 0
+m=audio $rtp_port RTP/AVP 0
+c=IN IP4 $src
+%
