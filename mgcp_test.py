@@ -7,12 +7,8 @@ import traceback
 
 #globals
 messages=""
-call_agent=""
-gateway=""
-gateway6=""
 gw_v6_mode=False
 udp_mode=False
-test_count=1
 rtp_port_min=5000
 rtp_port_max=5000
 ca_mode = False
@@ -21,6 +17,7 @@ ca_addr = ""
 ca_port = 0
 gw_addr = ""
 gw_port = 0
+gw_proto=""
 
 rtp_socket_list = [] # for fake rtp
 msg_values_dic = {}  # for message values replacement
@@ -54,12 +51,8 @@ def read_block(block_name):
     return block
 
 def load_setting():
-    global call_agent
-    global gateway
-    global gateway6
     global gw_v6_mode
     global udp_mode
-    global test_count
     global rtp_port_max
     global rtp_port_min
 
@@ -67,49 +60,49 @@ def load_setting():
     global ca_port
     global gw_addr
     global gw_port
+    global gw_proto
 
     try:
         setting = read_block("setting")
         for line in setting:
              if len(line) == 0:
                  continue
-             if line.startswith("ca="):
-                 call_agent = line[3:]
-             elif line.startswith("gw="):
-                 gateway = line[3:]
-             elif line.startswith("gw6="):
-                 gateway6 = line[4:]
-             elif line.startswith("gw_v6_mode="):
-                 gw_v6_mode = eval(line[11:])
+             if line.startswith("ca_ip="):
+                 ca_addr = line[6:]
+                 msg_values_dic["ca_ip"] = ca_addr
+             elif line.startswith("ca_port="):
+                 ca_port = int(line[8:])
+                 msg_values_dic["ca_port"] = ca_port
+             elif line.startswith("gw_ip="):
+                 gw_addr = line[6:]
+                 msg_values_dic["gw_ip"] = gw_addr
+             elif line.startswith("gw_port="):
+                 gw_port = int(line[8:])
+                 msg_values_dic["gw_port"] = gw_port
+             elif line.startswith("gw_proto="):
+                 gw_proto = line[9:]
+                 if gw_proto=="IP4":
+                     gw_v6_mode = False
+                 else:
+                     gw_v6_mode = True
+                 msg_values_dic["gw_proto"] = gw_proto
              elif line.startswith("udp_mode="):
                  udp_mode = eval(line[9:])
-             elif line.startswith("test_count="):
-                 test_count = eval(line[11:])
-             elif line.startswith("rtp_port="):
-                 rtp_port_min = eval(line[9:].split("-")[0])
-                 rtp_port_max = eval(line[9:].split("-")[1])
+             elif line.startswith("rtp_port_min="):
+                 rtp_port_min = int(line[13:])
+                 msg_values_dic["rtp_port_min"] = rtp_port_min
+             elif line.startswith("rtp_port_max="):
+                 rtp_port_max = int(line[13:])
+                 msg_values_dic["rtp_port_max"] = rtp_port_max
              else:
                  msg_values_dic[line.split("=")[0]] = line.split("=")[1]
 
-        ca_addr = call_agent.split(":")[0]
-        ca_port = int(call_agent.split(":")[1])
-        if gw_v6_mode:
-            gw_addr = gateway6.split("]:")[0][1:]
-            gw_port = int(gateway.split("]:")[1])
-        else:
-            gw_addr = gateway.split(":")[0]
-            gw_port = int(gateway.split(":")[1])
     except:
         print "message file error"
         print msg_values_dic
         traceback.print_exc()
         sys.exit(2)
 
-    msg_values_dic["ca_ip"] = ca_addr
-    msg_values_dic["ca_port"] = ca_port
-    msg_values_dic["gw_ip"] = gw_addr
-    msg_values_dic["gw_port"] = gw_port
-    msg_values_dic["rtp_port"] = "%d-%d"%(rtp_port_min, rtp_port_max)
 
 def rtp_fake():
     global rtp_socket_list
@@ -172,9 +165,10 @@ def run_ca():
         
 
     while True:
+        # Establish connection with gw.
         if not udp_mode:
-            c, addr = s.accept()     # Establish connection with gw.
-            msg = "Establish connection with %s"%(addr)
+            c, addr = s.accept()
+            msg = "%s:%d connected"%addr
         else:
             msg, addr = s.recvfrom(1024)
             udp_addr = addr
@@ -187,16 +181,15 @@ def run_ca():
                 print("<<<<<<<<<<<<<<<<<<")
                 print(msg)
                 received += 1
+                ca_process_msg(msg,addr)
+                rtp_fake()
+                msg = ""
             else:
                 if udp_mode:
                     c.close()
                 else:
                     s.close()
                 break
-
-            ca_process_msg(msg,addr)
-            rtp_fake()
-            msg = ""
 
             msg_need_send = read_block("ca %d"%(sent))
             if len(msg_need_send) == 0:
@@ -207,10 +200,7 @@ def run_ca():
                 print(">>>>>>>>>>>>>>>>>>")
                 print(msg_need_send)
                 if udp_mode:
-                    if addr:
-                        s.sendto(msg_need_send, addr)
-                    else:
-                        print "no gw connected for msg:\n"+ msg_need_send
+                    s.sendto(msg_need_send, addr)
                 else:
                     c.send(msg_need_send)
                 sent += 1
@@ -218,7 +208,7 @@ def run_ca():
 
             if udp_mode:
                 msg, addr = s.recvfrom(1024)
-                if addr != udp_addr:
+                if addr != udp_addr: # new gw connected, reset state
                     sent=0
                     received=0
                     udp_addr = addr
@@ -275,10 +265,10 @@ def run_gw():
             print("<<<<<<<<<<<<<<<<<<")
             print(msg)
             received += 1
+            gw_process_msg(msg)
         else:
             s.close()
             break
-        gw_process_msg(msg)
 
 def test_reset():
     global rtp_socket_list
@@ -288,7 +278,6 @@ def test_reset():
 
 def main(argv):
     global ca_mode
-    global test_count
     message_file = ""
 
     try:
@@ -316,13 +305,10 @@ def main(argv):
     load_setting()
 
     try:
-        while test_count > 0:
-            print "###run %d"%(test_count)
-            if ca_mode:
-                run_ca()
-            else:
-                run_gw()
-            test_count -= 1
+        if ca_mode:
+            run_ca()
+        else:
+            run_gw()
     except:
         print "exiting..."
         traceback.print_exc()
