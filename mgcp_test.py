@@ -160,8 +160,6 @@ def ca_process_msg(message, addr):
 def run_ca():
     global ca_addr
     global ca_port
-    sent=0
-    received=0
     addr = None
 
     if udp_mode:
@@ -171,14 +169,36 @@ def run_ca():
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  
         s.bind((ca_addr,ca_port))    # Bind to the port
         s.listen(5)                 # Now wait for gw connection.
+        
 
     while True:
         if not udp_mode:
             c, addr = s.accept()     # Establish connection with gw.
+            msg = "Establish connection with %s"%(addr)
+        else:
+            msg, addr = s.recvfrom(1024)
+            udp_addr = addr
+
+        sent=0
+        received=0
 
         while True:
-            msg_need_send = read_block("ca %d"%(sent))
+            if len(msg) != 0:
+                print("<<<<<<<<<<<<<<<<<<")
+                print(msg)
+                received += 1
+            else:
+                if udp_mode:
+                    c.close()
+                else:
+                    s.close()
+                break
+
+            ca_process_msg(msg,addr)
             rtp_fake()
+            msg = ""
+
+            msg_need_send = read_block("ca %d"%(sent))
             if len(msg_need_send) == 0:
                 msg_need_send = read_block("ca %d@%d"%(sent,received))
 
@@ -198,19 +218,12 @@ def run_ca():
 
             if udp_mode:
                 msg, addr = s.recvfrom(1024)
+                if addr != udp_addr:
+                    sent=0
+                    received=0
+                    udp_addr = addr
             else:
                 msg = c.recv(1024)
-            if len(msg) != 0:
-                print("<<<<<<<<<<<<<<<<<<")
-                print(msg)
-                received += 1
-            else:
-                if udp_mode:
-                    c.close()
-                else:
-                    s.close()
-                break
-            ca_process_msg(msg,addr)
 
 
 def gw_process_msg(msg):
