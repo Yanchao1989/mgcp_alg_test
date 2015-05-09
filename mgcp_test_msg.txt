@@ -4,18 +4,18 @@ udp_mode=True
 
 ca_ip=127.0.0.1
 ca_port=2427
-rtp_port_ca1=6000
-rtp_port_ca2=6002
+rtp_port_ca1=60000
+rtp_port_ca2=60002
 
 gw_proto=IP4
 gw_ip=127.0.0.1
 gw_port=2727
-rtp_port_gw1=5000
-rtp_port_gw2=5002
-rtp_port_gw3=5004
-rtp_port_gw4=5008
-rtp_port_gw5=5010
-rtp_port_gw6=5012
+rtp_port_gw1=50000
+rtp_port_gw2=50002
+rtp_port_gw3=50004
+rtp_port_gw4=50006
+rtp_port_gw5=50008
+rtp_port_gw6=50010
 
 %
 
@@ -409,6 +409,13 @@ K: 6
 
 %ca 22@22
 200 7 Ok
+%
+
+
+######################################
+close connection
+%gw 23
+c
 %
 
 

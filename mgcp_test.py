@@ -29,6 +29,12 @@ def usage():
         -s       In ca mode
         """)
 
+def rtp_socket_list_reset():
+    global rtp_socket_list
+    for s in rtp_socket_list:
+        s[0].close()
+    rtp_socket_list = []
+
 def load_message(file_name):
     global messages
     with open(file_name, 'r') as content_file:
@@ -126,7 +132,7 @@ def get_rtp_addr(sdp_message):
 def get_rtp_ports(sdp_message):
     ports = []
     p=re.compile("(?<=audio )\d+|(?<=video )\d+")
-    for line in message:
+    for line in sdp_message:
         ports_str = p.findall(line)
         for port in ports_str:
             ports.append(int(port))
@@ -136,21 +142,26 @@ def ca_process_msg(message, addr):
     global ca_addr
     global rtp_socket_list
 
+    message = message.splitlines()
+
     rtp_dst_addr = get_rtp_addr(message)
     if not rtp_dst_addr:
         return
-    if dst_addr != addr:
-        print "Warnning: %s!=%s"%(dst_addr, ca_addr)
+    if rtp_dst_addr != addr:
+        print "Warnning: %s!=%s"%(rtp_dst_addr, ca_addr)
 
     rtp_ports = get_rtp_ports(message)
     for rtp_port in rtp_ports:
         s_rtp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
         s_rtp.bind((ca_addr,0))
         rtp_socket_list.append((s_rtp,(rtp_dst_addr, rtp_port)))
-        rtcp_port += 1
+        rtcp_port = rtp_port + 1
         s_rtcp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
         s_rtcp.bind((ca_addr,0))
         rtp_socket_list.append((s_rtcp,(rtp_dst_addr, rtcp_port)))
+
+def valid_msg(message):
+    return (len(message) > 4)
 
 def run_ca():
     global ca_addr
@@ -166,85 +177,99 @@ def run_ca():
         s.listen(5)                 # Now wait for gw connection.
         
 
-    while True:
-        sent=0
-        received=0
-        at_received = received
-        # Establish connection with gw.
-        if not udp_mode:
-            c, addr = s.accept()
-            msg = c.recv(1024)
-        else:
-            msg, addr = s.recvfrom(1024)
-            udp_addr = addr
-        received += 1
-        print "%s:%d connected"%addr
-
-        if len(msg) != 0:
-            print("<<<<<<<<<<<<<<<<<<")
-            print(msg)
-            ca_process_msg(msg,addr)
-            rtp_fake()
-
+    try:
         while True:
-            msg_need_send = read_block("ca %d"%(sent))
-            while len(msg_need_send) == 0 and at_received <= received:
-                print "trying read block: ca %d@%d"%(sent, at_received-1)
-                msg_need_send = read_block("ca %d@%d"%(sent, at_received-1))
-                at_received += 1
-            print (sent, received, at_received, len(msg_need_send))
-
-            if len(msg_need_send) != 0:
-                msg_need_send = ca_msg_preprocess(msg_need_send)
-                print(">>>>>>>>>>>>>>>>>>")
-                print(msg_need_send)
-                if udp_mode:
-                    s.sendto(msg_need_send, addr)
-                else:
-                    c.send(msg_need_send)
-                    time.sleep(1) #make sure gw received data
-                sent += 1
-                continue
-
-            if udp_mode:
-                msg, addr = s.recvfrom(1024)
-                if addr != udp_addr: # new gw connected, reset state
-                    sent = 0
-                    received = 0
-                    at_received = received
-                    udp_addr = addr
-                    print "%s:%d connected"%addr
-            else:
+            sent=0
+            received=0
+            at_received = received
+            # Establish connection with gw.
+            if not udp_mode:
+                c, addr = s.accept()
                 msg = c.recv(1024)
-            if len(msg) != 0:
-                received += 1
+            else:
+                msg, addr = s.recvfrom(1024)
+                udp_addr = addr
+            received += 1
+            print "%s:%d connected"%addr
+            rtp_socket_list_reset()
+
+            if valid_msg(msg):
                 print("<<<<<<<<<<<<<<<<<<")
                 print(msg)
                 ca_process_msg(msg,addr)
                 rtp_fake()
-            else:
-                if not udp_mode:
-                    c.close()
-                print "connection closed"
-                break
+
+            while True:
+                msg_need_send = read_block("ca %d"%(sent))
+                while len(msg_need_send) == 0 and at_received <= received:
+                    msg_need_send = read_block("ca %d@%d"%(sent, at_received-1))
+                    at_received += 1
+
+                if len(msg_need_send) != 0:
+                    msg_need_send = ca_msg_preprocess(msg_need_send)
+                    print(">>>>>>>>>>>>>>>>>>")
+                    print(msg_need_send)
+                    if udp_mode:
+                        s.sendto(msg_need_send, addr)
+                    else:
+                        c.send(msg_need_send)
+                        time.sleep(1) #make sure gw received data
+                    sent += 1
+                    if not valid_msg(msg_need_send):
+                        if not udp_mode:
+                            c.close()
+                        print "connection closed"
+                        break
+                    continue
+
+
+                if udp_mode:
+                    msg, addr = s.recvfrom(1024)
+                    if addr != udp_addr: # new gw connected, reset state
+                        sent = 0
+                        received = 0
+                        at_received = received
+                        udp_addr = addr
+                        rtp_socket_list_reset()
+                        print "%s:%d connected"%addr
+                else:
+                    msg = c.recv(1024)
+                if valid_msg(msg):
+                    received += 1
+                    print("<<<<<<<<<<<<<<<<<<")
+                    print(msg)
+                    ca_process_msg(msg,addr)
+                    rtp_fake()
+                else:
+                    if not udp_mode:
+                        c.close()
+                    print "connection closed"
+                    break
+    except KeyboardInterrupt:
+        print "canceling..."
+    finally:
+        s.close()
+        print "socket closed"
 
 def gw_process_msg(message):
     global rtp_socket_list
     global gw_addr
     global ca_addr
 
+    message = message.splitlines()
+
     rtp_dst_addr = get_rtp_addr(message)
     if not rtp_dst_addr:
         return
-    if dst_addr != ca_addr:
-        print "Warnning: %s!=%s"%(dst_addr, ca_addr)
+    if rtp_dst_addr != ca_addr:
+        print "Warnning: %s!=%s"%(rtp_dst_addr, ca_addr)
 
     rtp_ports = get_rtp_ports(message)
     for rtp_port in rtp_ports:
         s_rtp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
         s_rtp.bind((gw_addr,0))
         rtp_socket_list.append((s_rtp,(rtp_dst_addr, rtp_port)))
-        rtcp_port += 1
+        rtcp_port = rtp_port + 1
         s_rtcp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
         s_rtcp.bind((gw_addr,0))
         rtp_socket_list.append((s_rtcp,(rtp_dst_addr, rtcp_port)))
@@ -275,44 +300,44 @@ def run_gw():
     sent = 0
     received = 0
     at_received = received
+    try:
+        while True:
+            msg_need_send = read_block("gw %d"%(sent))
+            while len(msg_need_send) == 0 and at_received <= received:
+                msg_need_send = read_block("gw %d@%d"%(sent,at_received-1))
+                at_received += 1
 
-    while True:
-        msg_need_send = read_block("gw %d"%(sent))
-        while len(msg_need_send) == 0 and at_received <= received:
-            print "trying read block: gw %d@%d"%(sent, at_received-1)
-            msg_need_send = read_block("gw %d@%d"%(sent,at_received-1))
-            at_received += 1
+            if len(msg_need_send) != 0:
+                msg_need_send = gw_msg_preprocess(msg_need_send)
+                print(">>>>>>>>>>>>>>>>>>")
+                print(msg_need_send)
+                if udp_mode:
+                    s.sendto(msg_need_send, address)
+                else:
+                    s.send(msg_need_send)
+                    time.sleep(1) #make sure ca received data
+                sent += 1
+                if not valid_msg(msg_need_send):
+                    break
+                continue
 
-        print (sent, received, at_received, len(msg_need_send))
-        if len(msg_need_send) != 0:
-            msg_need_send = gw_msg_preprocess(msg_need_send)
-            print(">>>>>>>>>>>>>>>>>>")
-            print(msg_need_send)
-            if udp_mode:
-                s.sendto(msg_need_send, address)
+
+            msg = s.recv(1024)
+            if valid_msg(msg):
+                print("<<<<<<<<<<<<<<<<<<")
+                print(msg)
+                received += 1
+                gw_process_msg(msg)
+                rtp_fake()
             else:
-                s.send(msg_need_send)
-                time.sleep(1) #make sure ca received data
-            sent += 1
-            continue
+                break
+    except KeyboardInterrupt:
+        print "canceling..."
+    finally:
+        s.close()
+        print "socket closed"
 
-        msg = s.recv(1024)
-        if len(msg) != 0:
-            print("<<<<<<<<<<<<<<<<<<")
-            print(msg)
-            received += 1
-            gw_process_msg(msg)
-            rtp_fake()
-        else:
-            s.close()
-            print "connection closed"
-            break
 
-def test_reset():
-    global rtp_socket_list
-    for s in rtp_socket_list:
-        s[0].close()
-    rtp_socket_list = []
 
 def main(argv):
     global ca_mode
@@ -350,6 +375,6 @@ def main(argv):
     except:
         print "exiting..."
         traceback.print_exc()
-    test_reset()
+    rtp_socket_list_reset()
 
 main(sys.argv[1:])
