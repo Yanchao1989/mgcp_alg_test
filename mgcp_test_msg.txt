@@ -1,15 +1,22 @@
 ######################################
 %setting
+udp_mode=True
+
 ca_ip=127.0.0.1
 ca_port=2427
+rtp_port_ca1=6000
+rtp_port_ca2=6002
 
 gw_proto=IP4
 gw_ip=127.0.0.1
 gw_port=2727
+rtp_port_gw1=5000
+rtp_port_gw2=5002
+rtp_port_gw3=5004
+rtp_port_gw4=5008
+rtp_port_gw5=5010
+rtp_port_gw6=5012
 
-udp_mode=True
-rtp_port_min=5000
-rtp_port_max=6000
 %
 
 
@@ -111,7 +118,7 @@ o=ixia_ixload 3223655 3223655 IN $gw_proto $gw_ip
 s=-
 c=IN $gw_proto $gw_ip
 t=0 0
-m=audio $rtp_port RTP/AVP 8
+m=audio $rtp_port_gw1 RTP/AVP 8
 a=rtpmap:8 PCMA/8000
 a=ptime:20
 %
@@ -129,7 +136,7 @@ o=ixia_ixload 3223655 3223655 IN IP4 $ca_ip
 s=-
 c=IN IP4 $ca_ip
 t=0 0
-m=audio $rtp_port RTP/AVP 8
+m=audio $rtp_port_ca1 RTP/AVP 8
 a=rtpmap:8 PCMA/8000
 a=ptime:20
 
@@ -144,7 +151,7 @@ o=ixia_ixload 3223655 3223655 IN IP4 100.64.100.1
 s=-
 c=IN $gw_proto $gw_ip
 t=0 0
-m=audio $rtp_port RTP/AVP 8
+m=audio $rtp_port_gw2 RTP/AVP 8
 a=rtpmap:8 PCMA/8000
 a=ptime:20
 %
@@ -181,7 +188,7 @@ o=ixia_ixload 3223655 3223655 IN $gw_proto $gw_ip
 s=-
 c=IN $gw_proto $gw_ip
 t=0 0
-m=audio $rtp_port RTP/AVP 8
+m=audio $rtp_port_gw3 RTP/AVP 8
 a=rtpmap:8 PCMA/8000
 a=ptime:20
 %
@@ -303,7 +310,7 @@ o=ixia_ixload 3223655 3223655 IN $gw_proto $gw_ip
 s=-
 c=IN $gw_proto $gw_ip
 t=0 0
-m=audio $rtp_port RTP/AVP 8
+m=audio $rtp_port_gw4 RTP/AVP 8
 a=rtpmap:8 PCMA/8000
 a=ptime:20
 %
@@ -321,7 +328,7 @@ o=ixia_ixload 3223655 3223655 IN IP4 $ca_ip
 s=-
 c=IN IP4 $ca_ip
 t=0 0
-m=audio $rtp_port RTP/AVP 8
+m=audio $rtp_port_ca2 RTP/AVP 8
 a=rtpmap:8 PCMA/8000
 a=ptime:20
 
@@ -336,7 +343,7 @@ o=ixia_ixload 3223655 3223655 IN $gw_proto $gw_ip
 s=-
 c=IN $gw_proto $gw_ip
 t=0 0
-m=audio $rtp_port RTP/AVP 8
+m=audio $rtp_port_gw5 RTP/AVP 8
 a=rtpmap:8 PCMA/8000
 a=ptime:20
 %
@@ -373,7 +380,7 @@ o=ixia_ixload 3223655 3223655 IN $gw_proto $gw_ip
 s=-
 c=IN $gw_proto $gw_ip
 t=0 0
-m=audio $rtp_port RTP/AVP 8
+m=audio $rtp_port_gw6 RTP/AVP 8
 a=rtpmap:8 PCMA/8000
 a=ptime:20
 %
