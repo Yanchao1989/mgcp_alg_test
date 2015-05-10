@@ -4,7 +4,6 @@ import sys
 import random
 import re
 import traceback
-import time
 
 #globals
 gw_v6_mode=False
@@ -18,6 +17,16 @@ gw_port = 0
 gw_proto=""
 
 messages=""
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 rtp_socket_list = [] # for fake rtp
 msg_values_dic = {}  # for message values replacement
@@ -94,7 +103,7 @@ def load_setting():
              else:
                  msg_values_dic[line.split("=")[0]] = line.split("=")[1]
     except:
-        print "message file error"
+        print bcolors.FAIL + "message file error" + bcolors.ENDC
         print msg_values_dic
         traceback.print_exc()
         sys.exit(2)
@@ -102,11 +111,9 @@ def load_setting():
 
 def rtp_fake():
     global rtp_socket_list
-    if len(rtp_socket_list) != 0:
-        print "faking rtp/rtcp"
     for s in rtp_socket_list:
         s[0].sendto("fake rtp/rtcp", s[1])
-        print "send fake rtp/rtcp to[%s]:%d"%s[1]
+        print "Send fake rtp/rtcp to[%s]:%d"%s[1]
 
 def msg_preprocess(message):
     result = ""
@@ -147,8 +154,8 @@ def ca_process_msg(message, addr):
     rtp_dst_addr = get_rtp_addr(message)
     if not rtp_dst_addr:
         return
-    if rtp_dst_addr != addr:
-        print "Warnning: %s!=%s"%(rtp_dst_addr, ca_addr)
+    if rtp_dst_addr != addr[0]:
+        print bcolors.WARNING + "Warnning: [%s] != [%s]"%(rtp_dst_addr, addr[0]) +bcolors.ENDC
 
     rtp_ports = get_rtp_ports(message)
     for rtp_port in rtp_ports:
@@ -162,6 +169,29 @@ def ca_process_msg(message, addr):
 
 def valid_msg(message):
     return (len(message) > 4)
+
+def print_input_msg(msg):
+    print("<<<<<<<<<<<<<<<<<<")
+    print(bcolors.OKBLUE + msg + bcolors.ENDC)
+
+def print_output_msg(msg):
+    print(">>>>>>>>>>>>>>>>>>")
+    print(bcolors.BOLD + msg + bcolors.ENDC)
+
+def msg_num_received_from_tcp(msg):
+    num = 0
+    contains_invalid = False
+    messages = msg.splitlines()
+    message = ""
+    for line in messages:
+        if line == "%":
+            num +=1
+            if not valid_msg(message):
+                contains_invalid = True
+            message = ""
+        message += line
+    return (num,contains_invalid)
+
 
 def run_ca():
     global ca_addr
@@ -186,16 +216,17 @@ def run_ca():
             if not udp_mode:
                 c, addr = s.accept()
                 msg = c.recv(1024)
+                msg_num, contains_invalid = msg_num_received_from_tcp(msg)
+                received += msg_num
             else:
                 msg, addr = s.recvfrom(1024)
                 udp_addr = addr
-            received += 1
+                received += 1
             print "%s:%d connected"%addr
             rtp_socket_list_reset()
 
             if valid_msg(msg):
-                print("<<<<<<<<<<<<<<<<<<")
-                print(msg)
+                print_input_msg(msg)
                 ca_process_msg(msg,addr)
                 rtp_fake()
 
@@ -207,13 +238,11 @@ def run_ca():
 
                 if len(msg_need_send) != 0:
                     msg_need_send = ca_msg_preprocess(msg_need_send)
-                    print(">>>>>>>>>>>>>>>>>>")
-                    print(msg_need_send)
+                    print_output_msg(msg_need_send)
                     if udp_mode:
                         s.sendto(msg_need_send, addr)
                     else:
-                        c.send(msg_need_send)
-                        time.sleep(1) #make sure gw received data
+                        c.send(msg_need_send+"\n%\n") # mark end of a message
                     sent += 1
                     if not valid_msg(msg_need_send):
                         if not udp_mode:
@@ -225,24 +254,31 @@ def run_ca():
 
                 if udp_mode:
                     msg, addr = s.recvfrom(1024)
+                    if not valid_msg(msg):
+                        break;
+                    received += 1
                     if addr != udp_addr: # new gw connected, reset state
                         sent = 0
-                        received = 0
+                        received = 1
                         at_received = received
                         udp_addr = addr
                         rtp_socket_list_reset()
                         print "%s:%d connected"%addr
                 else:
                     msg = c.recv(1024)
-                if valid_msg(msg):
-                    received += 1
-                    print("<<<<<<<<<<<<<<<<<<")
-                    print(msg)
-                    ca_process_msg(msg,addr)
-                    rtp_fake()
-                else:
-                    if not udp_mode:
+                    if not valid_msg(msg):
                         c.close()
+                        print "connection closed"
+                        break;
+                    msg_num, contains_invalid = msg_num_received_from_tcp(msg)
+                    received += msg_num
+
+                print_input_msg(msg)
+                ca_process_msg(msg,addr)
+                rtp_fake()
+
+                if (not udp_mode) and contains_invalid:
+                    c.close()
                     print "connection closed"
                     break
     except KeyboardInterrupt:
@@ -309,13 +345,11 @@ def run_gw():
 
             if len(msg_need_send) != 0:
                 msg_need_send = gw_msg_preprocess(msg_need_send)
-                print(">>>>>>>>>>>>>>>>>>")
-                print(msg_need_send)
+                print_output_msg(msg_need_send)
                 if udp_mode:
                     s.sendto(msg_need_send, address)
                 else:
-                    s.send(msg_need_send)
-                    time.sleep(1) #make sure ca received data
+                    s.send(msg_need_send + "\n%\n") #mark end of a message
                 sent += 1
                 if not valid_msg(msg_need_send):
                     break
@@ -323,14 +357,22 @@ def run_gw():
 
 
             msg = s.recv(1024)
-            if valid_msg(msg):
-                print("<<<<<<<<<<<<<<<<<<")
-                print(msg)
-                received += 1
-                gw_process_msg(msg)
-                rtp_fake()
-            else:
+            if not valid_msg(msg):
                 break
+
+            if udp_mode:
+                received += 1
+            else:
+                msg_num, contains_invalid = msg_num_received_from_tcp(msg)
+                received += msg_num
+
+            print_input_msg(msg)
+            gw_process_msg(msg)
+            rtp_fake()
+
+            if (not udp_mode) and contains_invalid:
+                break
+
     except KeyboardInterrupt:
         print "canceling..."
     finally:
