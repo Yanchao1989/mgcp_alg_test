@@ -160,6 +160,12 @@ def get_rtp_ports(sdp_message):
             ports.append(int(port))
     return ports
 
+def is_ipv6_addr(addr):
+    if addr.find(":") >= 0: # simple check
+        return True
+    else:
+        return False
+
 def ca_process_msg(message, addr):
     global ca_addr
     global rtp_socket_list
@@ -171,6 +177,8 @@ def ca_process_msg(message, addr):
         return
     if rtp_dst_addr != addr[0]:
         print bcolors.WARNING + "Warnning: [%s] != [%s]"%(rtp_dst_addr, addr[0]) +bcolors.ENDC
+    if is_ipv6_addr(rtp_dst_addr):
+        print bcolors.FAIL + "Error: [%s] is IPv6"%(rtp_dst_addr) + bcolors.ENDC
 
     rtp_ports = get_rtp_ports(message)
     for rtp_port in rtp_ports:
