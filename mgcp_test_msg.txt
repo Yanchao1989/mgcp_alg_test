@@ -37,14 +37,12 @@ RM: restart
 
 ######################################
 %ca 1
-d@d*jyEX`=dd@d
-	{DAUEP 3 aaln/0@ix4000.ixia-lab.com MGCP 1.0 NCS 1.0
+AUEP 3 aaln/0@ix4000.ixia-lab.com MGCP 1.0 NCS 1.0
 F: I,A
 %
 
 %ca 2
-d@d*jyEua=pdd@d
-	{aU5RQNT 4 aaln/0@ix4000.ixia-lab.com MGCP 1.0 NCS 1.0
+RQNT 4 aaln/0@ix4000.ixia-lab.com MGCP 1.0 NCS 1.0
 X: 2
 R: L/hd
 S: 
@@ -63,8 +61,7 @@ A: v:on, e:off
 
 ######################################
 %gw 3
-*jyd@dEe6F@d@dd	{
-QQNTFY 2 aaln/0@ix4000.ixia-lab.com MGCP 1.0 NCS 1.0
+NTFY 2 aaln/0@ix4000.ixia-lab.com MGCP 1.0 NCS 1.0
 X: 2
 O: L/hd
 K: 1
@@ -76,8 +73,7 @@ K: 1
 
 ######################################
 %ca 4
-d@d*jyEc=;dd@d
-	{RQNT 5 aaln/0@ix4000.ixia-lab.com MGCP 1.0 NCS 1.0
+RQNT 5 aaln/0@ix4000.ixia-lab.com MGCP 1.0 NCS 1.0
 X: 3
 R: L/hu(N),L/hf(N),L/[0-9#*T](D),L/oc(N)
 S: L/dl(to=16000)
