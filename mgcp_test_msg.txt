@@ -1,6 +1,6 @@
 ######################################
 %setting
-udp_mode=True
+udp_mode=False
 
 ca_ip=80.1.1.108
 ca_port=2427

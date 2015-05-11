@@ -4,6 +4,7 @@ import sys
 import random
 import re
 import traceback
+import time
 
 #globals
 gw_v6_mode=False
@@ -268,6 +269,7 @@ def run_ca():
                         s.sendto(msg_need_send, addr)
                     else:
                         c.send(msg_need_send+"\n%\n") # mark end of a message
+                        time.sleep(0.1)
                     sent += 1
                     if not valid_msg(msg_need_send):
                         if not udp_mode:
@@ -381,6 +383,7 @@ def run_gw():
                     s.sendto(msg_need_send, address)
                 else:
                     s.send(msg_need_send + "\n%\n") #mark end of a message
+                    time.sleep(0.1)
                 sent += 1
                 if not valid_msg(msg_need_send):
                     break
