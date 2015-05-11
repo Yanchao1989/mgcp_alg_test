@@ -10,22 +10,25 @@ gw_v6_mode=False
 udp_mode=False
 ca_mode = False
 
-ca_addr = ""
-ca_port = 0
-gw_addr = ""
-gw_port = 0
-gw_proto=""
+ca_addr    = ""
+ca_port    = 0
+
+gw_proto   = ""
+gw_ca_addr = ""  # the ca address seen by gw
+gw_ca_port = 0
+gw_addr    = ""
+gw_port    = 0
 
 messages=""
 
 class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
+    HEADER    = '\033[95m'
+    OKBLUE    = '\033[94m'
+    OKGREEN   = '\033[92m'
+    WARNING   = '\033[93m'
+    FAIL      = '\033[91m'
+    ENDC      = '\033[0m'
+    BOLD      = '\033[1m'
     UNDERLINE = '\033[4m'
 
 rtp_socket_list = [] # for fake rtp
@@ -73,6 +76,8 @@ def load_setting():
     global gw_addr
     global gw_port
     global gw_proto
+    global gw_ca_addr
+    global gw_ca_port
 
     try:
         setting = read_block("setting")
@@ -98,10 +103,20 @@ def load_setting():
                  else:
                      gw_v6_mode = True
                  msg_values_dic["gw_proto"] = gw_proto
+             elif line.startswith("gw_ca_ip="):
+                 gw_ca_addr = line[9:]
+                 msg_values_dic["gw_ca_ip"] = gw_addr
+             elif line.startswith("gw_ca_port="):
+                 gw_ca_port = int(line[11:])
+                 msg_values_dic["gw_ca_port"] = gw_port
              elif line.startswith("udp_mode="):
                  udp_mode = eval(line[9:])
              else:
                  msg_values_dic[line.split("=")[0]] = line.split("=")[1]
+
+        if len(gw_ca_addr) == 0:
+            gw_ca_addr = ca_addr # use default value
+            gw_ca_port = ca_port
     except:
         print bcolors.FAIL + "message file error" + bcolors.ENDC
         print msg_values_dic
@@ -290,34 +305,40 @@ def run_ca():
 def gw_process_msg(message):
     global rtp_socket_list
     global gw_addr
-    global ca_addr
+    global gw_ca_addr
 
     message = message.splitlines()
 
     rtp_dst_addr = get_rtp_addr(message)
     if not rtp_dst_addr:
         return
-    if rtp_dst_addr != ca_addr:
-        print "Warnning: %s!=%s"%(rtp_dst_addr, ca_addr)
+    if rtp_dst_addr != gw_ca_addr:
+        print "Warnning: %s!=%s"%(rtp_dst_addr, gw_ca_addr)
 
     rtp_ports = get_rtp_ports(message)
     for rtp_port in rtp_ports:
-        s_rtp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
+        if gw_v6_mode:
+            s_rtp = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)  
+        else:
+            s_rtp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
         s_rtp.bind((gw_addr,0))
         rtp_socket_list.append((s_rtp,(rtp_dst_addr, rtp_port)))
         rtcp_port = rtp_port + 1
-        s_rtcp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
+        if gw_v6_mode:
+            s_rtcp = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)  
+        else:
+            s_rtcp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
         s_rtcp.bind((gw_addr,0))
         rtp_socket_list.append((s_rtcp,(rtp_dst_addr, rtcp_port)))
 
 
 def run_gw():
-    global ca_addr
-    global ca_port
+    global gw_ca_addr
+    global gw_ca_port
     global gw_addr
     global gw_port
 
-    address = (ca_addr, ca_port)
+    address = (gw_ca_addr, gw_ca_port)
 
     if udp_mode:
         if gw_v6_mode:
@@ -375,6 +396,8 @@ def run_gw():
 
     except KeyboardInterrupt:
         print "canceling..."
+        if udp_mode:
+            s.sendto("c\n", address) #close udp connection
     finally:
         s.close()
         print "socket closed"
