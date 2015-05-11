@@ -244,6 +244,8 @@ def run_ca():
                 print_input_msg(msg)
                 ca_process_msg(msg,addr)
                 rtp_fake()
+            else:
+                continue
 
             while True:
                 msg_need_send = read_block("ca %d"%(sent))
