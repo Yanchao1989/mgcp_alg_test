@@ -7,8 +7,14 @@ ca_port=2727
 rtp_port_ca1=60000
 rtp_port_ca2=60002
 
-gw_proto=IP6
-gw_ip=2081:db8:5101:16b::1
+" NAT64 case
+"gw_proto=IP6
+"gw_ip=2081:db8:5101:16b::1
+
+" LSN case
+gw_proto=IP4
+gw_ip=81.1.1.107
+
 gw_port=2427
 rtp_port_gw1=50000
 rtp_port_gw2=50002
@@ -17,8 +23,13 @@ rtp_port_gw4=50006
 rtp_port_gw5=50008
 rtp_port_gw6=50010
 
-"the ca address seen by gw, for NAT64 case
-gw_ca_ip=2080::80.1.1.108
+" the ca address seen by gw
+" NAT64 case
+"gw_ca_ip=2080::80.1.1.108
+"gw_ca_port=2727
+
+" LSN case
+gw_ca_ip=80.1.1.108
 gw_ca_port=2727
 
 %
