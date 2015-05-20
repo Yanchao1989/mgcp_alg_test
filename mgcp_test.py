@@ -413,6 +413,14 @@ def run_gw():
 
             if (not udp_mode) and contains_invalid:
                 break
+        try:
+            while len(rtp_socket_list) != 0:
+                print "faking rtp/rtcp, CTRL+C to stop"
+                rtp_fake()
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            rtp_socket_list_reset()
+            print "faking stoped"
 
     except KeyboardInterrupt:
         print "canceling..."
