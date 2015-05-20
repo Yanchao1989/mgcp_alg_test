@@ -1,14 +1,13 @@
 import socket               # Import socket module
 import getopt
 import sys
-import random
 import re
 import traceback
 import time
 
-#globals
-gw_v6_mode=False
-udp_mode=False
+# globals
+gw_v6_mode = False
+udp_mode = False
 ca_mode = False
 
 ca_addr    = ""
@@ -183,11 +182,11 @@ def ca_process_msg(message, addr):
 
     rtp_ports = get_rtp_ports(message)
     for rtp_port in rtp_ports:
-        s_rtp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
+        s_rtp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s_rtp.bind((ca_addr,0))
         rtp_socket_list.append((s_rtp,(rtp_dst_addr, rtp_port)))
         rtcp_port = rtp_port + 1
-        s_rtcp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
+        s_rtcp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s_rtcp.bind((ca_addr,0))
         rtp_socket_list.append((s_rtcp,(rtp_dst_addr, rtcp_port)))
 
@@ -223,16 +222,24 @@ def run_ca():
     addr = None
 
     if udp_mode:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
-        s.bind((ca_addr, ca_port)) 
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.bind((ca_addr, ca_port))
     else:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((ca_addr,ca_port))    # Bind to the port
         s.listen(5)                 # Now wait for gw connection.
-        
+
 
     try:
         while True:
+            try:
+                while len(rtp_socket_list) != 0:
+                    print "faking rtp/rtcp, CTRL+C to stop"
+                    rtp_fake()
+                    time.sleep(0.5)
+            except KeyboardInterrupt:
+                print "waiting for next MGCP"
+
             sent=0
             received=0
             at_received = received
@@ -330,16 +337,16 @@ def gw_process_msg(message):
     rtp_ports = get_rtp_ports(message)
     for rtp_port in rtp_ports:
         if gw_v6_mode:
-            s_rtp = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)  
+            s_rtp = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         else:
-            s_rtp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
+            s_rtp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s_rtp.bind((gw_addr,0))
         rtp_socket_list.append((s_rtp,(rtp_dst_addr, rtp_port)))
         rtcp_port = rtp_port + 1
         if gw_v6_mode:
-            s_rtcp = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)  
+            s_rtcp = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         else:
-            s_rtcp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
+            s_rtcp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s_rtcp.bind((gw_addr,0))
         rtp_socket_list.append((s_rtcp,(rtp_dst_addr, rtcp_port)))
 
@@ -354,15 +361,15 @@ def run_gw():
 
     if udp_mode:
         if gw_v6_mode:
-            s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)  
+            s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         else:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.bind((gw_addr, gw_port))
     else:
         if gw_v6_mode:
-            s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)  
+            s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         else:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((gw_addr, gw_port))
         s.connect(address)
 
